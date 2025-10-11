@@ -16,6 +16,8 @@ namespace Editor_de_txt
         char c_caracter;
         int Numero_linea;
          string elemento = "";
+        string elementois = "";
+        string token;
         /// <summary>
         /// Limpiar los recursos que se estén usando.
         /// </summary>
@@ -51,6 +53,7 @@ namespace Editor_de_txt
             this.traducirToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.richTextBox2 = new System.Windows.Forms.RichTextBox();
+            this.sintacticoToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -123,7 +126,8 @@ namespace Editor_de_txt
             // 
             this.compiladorToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.analizarToolStripMenuItem,
-            this.traducirToolStripMenuItem});
+            this.traducirToolStripMenuItem,
+            this.sintacticoToolStripMenuItem});
             this.compiladorToolStripMenuItem.Name = "compiladorToolStripMenuItem";
             this.compiladorToolStripMenuItem.Size = new System.Drawing.Size(102, 24);
             this.compiladorToolStripMenuItem.Text = "Compilador";
@@ -131,14 +135,14 @@ namespace Editor_de_txt
             // analizarToolStripMenuItem
             // 
             this.analizarToolStripMenuItem.Name = "analizarToolStripMenuItem";
-            this.analizarToolStripMenuItem.Size = new System.Drawing.Size(146, 26);
+            this.analizarToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.analizarToolStripMenuItem.Text = "Analizar";
             this.analizarToolStripMenuItem.Click += new System.EventHandler(this.analizarToolStripMenuItem_Click);
             // 
             // traducirToolStripMenuItem
             // 
             this.traducirToolStripMenuItem.Name = "traducirToolStripMenuItem";
-            this.traducirToolStripMenuItem.Size = new System.Drawing.Size(146, 26);
+            this.traducirToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.traducirToolStripMenuItem.Text = "Traducir";
             this.traducirToolStripMenuItem.Click += new System.EventHandler(this.traducirToolStripMenuItem_Click);
             // 
@@ -164,6 +168,13 @@ namespace Editor_de_txt
             this.richTextBox2.Size = new System.Drawing.Size(802, 167);
             this.richTextBox2.TabIndex = 2;
             this.richTextBox2.Text = "";
+            // 
+            // sintacticoToolStripMenuItem
+            // 
+            this.sintacticoToolStripMenuItem.Name = "sintacticoToolStripMenuItem";
+            this.sintacticoToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.sintacticoToolStripMenuItem.Text = "Sintactico";
+            this.sintacticoToolStripMenuItem.Click += new System.EventHandler(this.sintacticoToolStripMenuItem_Click);
             // 
             // Form1
             // 
@@ -205,6 +216,7 @@ namespace Editor_de_txt
         private System.Windows.Forms.ToolStripMenuItem compiladorToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem analizarToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem traducirToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem sintacticoToolStripMenuItem;
     }
 }
 

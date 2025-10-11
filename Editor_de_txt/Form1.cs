@@ -18,6 +18,7 @@ namespace Editor_de_txt
             InitializeComponent();
             analizarToolStripMenuItem.Enabled = false;
             traducirToolStripMenuItem.Enabled = false;
+            sintacticoToolStripMenuItem.Enabled = false;
         }
         private void abrirToolStripMenuItem_Click(object send, EventArgs e)
         {
@@ -86,6 +87,7 @@ namespace Editor_de_txt
                         case 47: return '/';
                         case 32: return 'e';
 
+
                         default:return 's';
                     };
                 }
@@ -101,6 +103,32 @@ namespace Editor_de_txt
             } while(i_caracter != 34 && i_caracter != -1);
             if (i_caracter == -1) Error(-1);
         }
+        private void Simbolo()
+        {
+            if (i_caracter == 33 ||                              // !
+        (i_caracter >= 35 && i_caracter <= 38) ||        // # $ % &
+        (i_caracter >= 40 && i_caracter <= 46) ||        // ( ) * + , - .   
+        i_caracter == 47 ||                              // /
+        (i_caracter >= 58 && i_caracter <= 62) ||        // : ; < = > ?
+        i_caracter == 91 ||                              // [
+        i_caracter == 93 ||                              // ]
+        i_caracter == 94 ||                              // ^
+        i_caracter == 123 ||                             // {
+        i_caracter == 124 ||                             // |
+        i_caracter == 125)                               // }
+            {
+                elemento = ((char)i_caracter).ToString();
+                elementois = elemento + " Símbolo\n";
+            }
+            else
+            {
+                Error(i_caracter);
+                elemento = "";
+                elementois = "";
+            }
+
+
+        }
 
         private void Caracter()
         {
@@ -109,7 +137,7 @@ namespace Editor_de_txt
         }
         private void Error(int i_caracter)
         {
-            richTextBox2.AppendText("Error lexico "+i_caracter+", linea "+ Numero_linea+ "\n");
+            richTextBox2.AppendText("Error léxico " + (char)i_caracter + ", línea " + Numero_linea + "\n");
             N_error++;
         }
 
@@ -162,24 +190,26 @@ namespace Editor_de_txt
 
                 switch (Tipo_caracter(i_caracter))
                 {
-                    case 'l': elemento = "" + c_caracter;Identificador();Escribir.Write(elemento); break;
+                    case 'l': elemento = "" + c_caracter;Identificador();Escribir.Write(elementois);
+
+                        break;
 
                     case 'd':
                         Escribir.Write(c_caracter + "  digito\n");
                         break;
 
                     case 's':
-                        Escribir.Write(c_caracter + "  simbolo\n");
+                        Simbolo(); Escribir.Write(elementois); 
                         break;
 
                     case '"':
                         Cadena();
-                        Escribir.Write("  cadena\n");
+                        Escribir.Write("   cadena\n");
                         break;
 
                     case 'c':
                         Caracter();
-                        Escribir.Write(c_caracter + "  caracter\n");
+                        Escribir.Write(c_caracter + "   caracter\n");
                         break;
 
                     case 'n':
@@ -192,6 +222,7 @@ namespace Editor_de_txt
 
                     case '/':
                         Comentario();
+                        Escribir.Write("Comentario\n");
                         break;
 
                     default:
@@ -208,7 +239,6 @@ namespace Editor_de_txt
             {
                 richTextBox2.Text = mostrar.ReadToEnd();
             }
-
             richTextBox2.AppendText("\nErrores: " + N_error);
         }
 
@@ -216,6 +246,7 @@ namespace Editor_de_txt
         {
             analizarToolStripMenuItem.Enabled = true;
             traducirToolStripMenuItem.Enabled = true;
+            sintacticoToolStripMenuItem.Enabled = true;
         }
 
         private void salirToolStripMenuItem_Click(object sender, EventArgs e)
@@ -233,19 +264,17 @@ namespace Editor_de_txt
             string textoOriginal = richTextBox1.Text;
             string textoTraducido = textoOriginal;
 
-            // Reemplazar todas las palabras reservadas detectadas
             foreach (var palabra in P_Reservadas)
             {
                 if (traducciones.ContainsKey(palabra))
                 {
                     textoTraducido = System.Text.RegularExpressions.Regex.Replace(
                         textoTraducido,
-                        $@"\b{palabra}\b",   // solo la palabra exacta
+                        $@"\b{palabra}\b",   
                         traducciones[palabra]);
                 }
             }
 
-            // Mostrar resultado traducido en richTextBox2
             richTextBox2.Text = textoTraducido;
 
             
@@ -261,8 +290,8 @@ namespace Editor_de_txt
             i_caracter = Leer.Read();
             if ((char)i_caracter == 'h')
             {
-                elemento = "Archivo Libreria\n";
-                i_caracter = Leer.Read();
+                elemento = "Libreria";      
+                elementois = "Libreria\n";  
             }
             else
             {
@@ -300,18 +329,18 @@ namespace Editor_de_txt
             else
             {
                 if (Palabra_Reservada())
-                    elemento = elemento + "  Palabra Reservada\n";
+                    elementois = elemento + "  Palabra Reservada\n";
                 else
-                    elemento = elemento + "  Identificador\n";
+                    elementois = elemento + "  Identificador\n";
             }
         }
         private List<string> P_Reservadas  = new List<string> {
     "auto","break","case","char","const","continue","default","do","double",
-    "else","enum","extern","float","for","goto","if","inline","int","long",
+    "else","enum","extern","float","for","goto","if","inline","int","long", "main",
     "register","restrict","return","short","signed","sizeof","static",
     "struct","switch","typedef","union","unsigned","void","volatile","while",
     "_Alignas","_Alignof","_Atomic","_Bool","_Complex","_Generic","_Imaginary",
-    "_Noreturn","_Static_assert","_Thread_local"
+    "_Noreturn","_Static_assert","_Thread_local","include","printf"
         };
 
         Dictionary<string,string> traducciones = new Dictionary<string, string>()
@@ -328,7 +357,7 @@ namespace Editor_de_txt
         {"_Alignof","alineación_de"},{"_Atomic","atómico"},{"_Bool","booleano"},
         {"_Complex","complejo"},{"_Generic","genérico"},{"_Imaginary","imaginario"},
         {"_Noreturn","sin_retorno"},{"_Static_assert","afirmación_estática"},
-        {"_Thread_local","hilo_local"},{"include","incluir" },
+        {"_Thread_local","hilo_local"},{"include","incluir" }, {"main","principal" },
 
         // Funciones de stdio.h
         {"printf","imprimir"},{"scanf","leer"},{"gets","leer_linea"},{"fgets","leer_linea_segura"},
@@ -378,6 +407,151 @@ namespace Editor_de_txt
         {"ctime","hora_sistema"},{"gmtime","tiempo_utc"},{"localtime","tiempo_local"},
         {"strftime","formato_tiempo"}
         };
+
+
+
+
+
+
+        private void ErrorS(string token)
+        {
+            richTextBox2.AppendText("Error sintactico " + (string)token + ", línea " + Numero_linea + "\n");
+            N_error++;
+        }
+        private void sintacticoToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            guardar();
+            N_error = 0; Numero_linea = 1;
+            archivoback = archivo.Remove(archivo.Length - 1) + "back";
+            Escribir = new StreamWriter(archivoback);
+            Leer = new StreamReader(archivo);
+            do
+            {
+                i_caracter = Leer.Read();
+                c_caracter = (char)i_caracter;
+
+                switch (Tipo_caracter(i_caracter))
+                {
+                    case 'l':
+                        elemento = ""+ c_caracter; Identificador(); Escribir.Write(elemento+"\n");
+
+                        break;
+
+                    case 'd':
+                        Escribir.Write(c_caracter + "\n");
+                        break;
+
+                    case 's':
+                        Simbolo(); Escribir.Write(elemento + "\n"); 
+                        break;
+
+                    case '"':
+                        Cadena();
+                        Escribir.Write("cadena\n");
+                        break;
+
+                    case 'c':
+                        Caracter();
+                        Escribir.Write(c_caracter + "\n");
+                        break;
+
+                    case 'n':
+                        Escribir.Write("LF\n");
+                        Numero_linea++;
+                        break;
+
+                    case 'e':
+                        break;
+
+                    case '/':
+                        Comentario();
+                        Escribir.Write("Comentario\n");
+                        break;
+
+                    default:
+                        Error(i_caracter);
+                        break;
+                }
+
+                
+            } while (i_caracter != -1);
+
+            Escribir.Close();
+            Leer.Close();
+            N_error = 0; Numero_linea = 1;
+            Leer = new StreamReader(archivoback);
+            Cabecera();
+        }
+        private void Cabecera()
+        {
+            token = Leer.ReadLine();
+
+            switch (token)
+            {
+                case "#":DireProc();Numero_linea++; break;
+                case "LF":Numero_linea++;Cabecera(); break;
+                case "Comentario": token = Leer.ReadLine(); Numero_linea++; Cabecera(); break;
+                default:ErrorS("Ya empieza el main");break;
+            }
+             
+        }
+        private void DireProc()
+        {
+            DireInclude();
+        }
+
+        private void DireInclude()
+        {
+
+            token =Leer.ReadLine();
+            Numero_linea++;
+            if (token == "include")
+            {
+                token = Leer.ReadLine();
+                Numero_linea++;
+                switch (token)
+                { 
+                    case "<":
+                        token = Leer.ReadLine();
+                        Numero_linea++;
+                        if (token == "Libreria")
+                        {
+                            token = Leer.ReadLine();
+                            Numero_linea++;
+                            if (token == ">")
+                            {
+                                Cabecera();
+                            }
+                            else {
+                                N_error++;
+                                ErrorS("Se esperaba >");
+
+                            }
+                        }
+                        else 
+                        {
+                            N_error++;
+                            ErrorS("Se esperaba Libreria");
+                        }
+                        break;
+                    case "cadena":Numero_linea++; Cabecera();
+                        break;
+
+                        default: N_error++; ErrorS("Se esperaba alguna directiva include "); break;
+
+
+                }
+            }
+            else
+            {
+                N_error++;
+                ErrorS("Se esperaba include");
+            }
+
+
+        }
+
 
     }
 }
