@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 
 namespace Editor_de_txt
 {
@@ -18,6 +19,7 @@ namespace Editor_de_txt
          string elemento = "";
         string elementois = "";
         string token;
+        List<string> P_Res_Tipo = new List<string>() { "int", "float", "string", "bool", "char", "double", "long", "void" };
         /// <summary>
         /// Limpiar los recursos que se estén usando.
         /// </summary>

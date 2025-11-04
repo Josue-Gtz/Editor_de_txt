@@ -89,7 +89,8 @@ namespace Editor_de_txt
 
 
                         default: return 's';
-                    };
+                    }
+                    ;
                 }
             }
         }
@@ -100,32 +101,24 @@ namespace Editor_de_txt
             {
                 i_caracter = Leer.Read();
                 if (i_caracter == 10) Numero_linea++;
+
             } while (i_caracter != 34 && i_caracter != -1);
             if (i_caracter == -1) Error(-1);
         }
         private void Simbolo()
         {
-            if (i_caracter == 33 ||                              // !
-        (i_caracter >= 35 && i_caracter <= 38) ||        // # $ % &
-        (i_caracter >= 40 && i_caracter <= 46) ||        // ( ) * + , - .   
-        i_caracter == 47 ||                              // /
-        (i_caracter >= 58 && i_caracter <= 62) ||        // : ; < = > ?
-        i_caracter == 91 ||                              // [
-        i_caracter == 93 ||                              // ]
-        i_caracter == 94 ||                              // ^
-        i_caracter == 123 ||                             // {
-        i_caracter == 124 ||                             // |
-        i_caracter == 125)                               // }
+            if (i_caracter == 33 ||
+                i_caracter >= 35 && i_caracter <= 38 ||
+                i_caracter >= 40 && i_caracter <= 45 ||
+                i_caracter == 47 ||
+                i_caracter >= 58 && i_caracter <= 62 ||
+                i_caracter == 91 || i_caracter == 93 ||
+                i_caracter == 94 || i_caracter == 123 ||
+                i_caracter == 124 || i_caracter == 125)
             {
-                elemento = ((char)i_caracter).ToString();
-                elementois = elemento + " Símbolo\n";
+                elemento = ((char)i_caracter).ToString() + "\n";
             }
-            else
-            {
-                Error(i_caracter);
-                elemento = "";
-                elementois = "";
-            }
+            else { Error(i_caracter); }
 
 
         }
@@ -140,6 +133,40 @@ namespace Editor_de_txt
             richTextBox2.AppendText("Error léxico " + (char)i_caracter + ", línea " + Numero_linea + "\n");
             N_error++;
         }
+
+
+
+        private void Numero_Real()
+        {
+            do
+            {
+                i_caracter = Leer.Read();
+            } while (Tipo_caracter(i_caracter) == 'd');
+
+            Escribir.Write("numero_real\n");
+        }
+        private void Numero()
+        {
+            if ((char)i_caracter == '-')
+            {
+                i_caracter = Leer.Read();
+            }
+
+            do
+            {
+                i_caracter = Leer.Read();
+            } while (Tipo_caracter(i_caracter) == 'd');
+
+            if ((char)i_caracter == '.')
+            {
+                Numero_Real();
+                return;
+            }
+
+            Escribir.Write("numero_entero\n");
+        }
+
+
 
         private bool Comentario()
         {
@@ -186,15 +213,18 @@ namespace Editor_de_txt
             do
             {
                 i_caracter = Leer.Read();
+                if (i_caracter == -1) break;
                 c_caracter = (char)i_caracter;
 
                 switch (Tipo_caracter(i_caracter))
                 {
-                    case 'l': elemento = "" + c_caracter; Identificador(); Escribir.Write(elementois);
+                    case 'l':
+                        elemento = "" + c_caracter; Identificador(); Escribir.Write(elementois);
 
                         break;
 
                     case 'd':
+                        Numero();
                         Escribir.Write(c_caracter + "  digito\n");
                         break;
 
@@ -288,15 +318,8 @@ namespace Editor_de_txt
         private void Archivo_Libreria()
         {
             i_caracter = Leer.Read();
-            if ((char)i_caracter == 'h')
-            {
-                elemento = "Libreria";
-                elementois = "Libreria\n";
-            }
-            else
-            {
-                Error(i_caracter);
-            }
+            if ((char)i_caracter == 'h') { Escribir.Write("libreria\n"); i_caracter = Leer.Read(); }
+            else { Error(i_caracter); }
         }
 
         // Validar si es palabra reservada
@@ -311,27 +334,15 @@ namespace Editor_de_txt
         {
             do
             {
+                elemento = elemento + (char)i_caracter;
                 i_caracter = Leer.Read();
-                if (Tipo_caracter(i_caracter) == 'l' || Tipo_caracter(i_caracter) == 'd')
-                {
-                    elemento += (char)i_caracter;
-                }
-                else
-                {
-                    break;
-                }
-            } while (true);
+            } while (Tipo_caracter(i_caracter) == 'l' || Tipo_caracter(i_caracter) == 'd');
 
-            if ((char)i_caracter == '.')
-            {
-                Archivo_Libreria();
-            }
+            if ((char)i_caracter == '.') { Archivo_Libreria(); }
             else
             {
-                if (Palabra_Reservada())
-                    elementois = elemento + "  Palabra Reservada\n";
-                else
-                    elementois = elemento + "  Identificador\n";
+                if (Palabra_Reservada()) Escribir.Write(elemento.ToLower() + "\n");
+                else Escribir.Write("identificador\n");
             }
         }
         private List<string> P_Reservadas = new List<string> {
@@ -410,113 +421,155 @@ namespace Editor_de_txt
 
 
 
-
-
-
-        private void ErrorS(string token)
+        private void Error(string mensaje)
         {
-            richTextBox2.AppendText("Error sintactico " + (string)token + ", línea " + Numero_linea + "\n");
+            richTextBox2.AppendText($"Error sintáctico: {mensaje}, línea {Numero_linea}\n");
+            N_error++;
+        }
+
+
+        private void ErrorS(string e, string s)
+        {
+            richTextBox2.AppendText(" Error sintactico " + e + ", línea " + Numero_linea + " Se esperaba " + s + "\n");
             N_error++;
         }
         private void sintacticoToolStripMenuItem_Click(object sender, EventArgs e)
         {
 
             guardar();
-            N_error = 0; Numero_linea = 1;
+
+            elemento = "";
+            N_error = 0;
+            Numero_linea = 1;
+
             archivoback = archivo.Remove(archivo.Length - 1) + "back";
             Escribir = new StreamWriter(archivoback);
             Leer = new StreamReader(archivo);
+
+            i_caracter = Leer.Read();
+
             do
             {
-                i_caracter = Leer.Read();
-                c_caracter = (char)i_caracter;
+                elemento = "";
+
+                if ((char)i_caracter == '/')
+                {
+                    if (Comentario())
+                    {
+                        Escribir.Write("Comentario\n");
+                        continue;
+                    }
+                }
 
                 switch (Tipo_caracter(i_caracter))
                 {
-                    case 'l':
-                        elemento = "" + c_caracter; Identificador(); Escribir.Write(elemento + "\n");
-
-                        break;
-
-                    case 'd':
-                        Escribir.Write(c_caracter + "\n");
-                        break;
-
-                    case 's':
-                        Simbolo(); Escribir.Write(elemento + "\n");
-                        break;
-
-                    case '"':
-                        Cadena();
-                        Escribir.Write("cadena\n");
-                        break;
-
-                    case 'c':
-                        Caracter();
-                        Escribir.Write(c_caracter + "\n");
-                        break;
-
-                    case 'n':
-                        Escribir.Write("LF\n");
-                        Numero_linea++;
-                        break;
-
-                    case 'e':
-                        break;
-
-                    case '/':
-                        Comentario();
-                        Escribir.Write("Comentario\n");
-                        break;
-
-                    default:
-                        Error(i_caracter);
-                        break;
+                    case 'l': Identificador(); break;
+                    case 'd': Numero(); break;
+                    case 's': Simbolo(); Escribir.Write(elemento); i_caracter = Leer.Read(); break;
+                    case '"': Cadena(); Escribir.Write("Cadena\n"); i_caracter = Leer.Read(); break;
+                    case 'c': Caracter(); Escribir.Write("Caracter\n"); i_caracter = Leer.Read(); break;
+                    case 'n': i_caracter = Leer.Read(); Numero_linea++; Escribir.Write("LF\n"); break;
+                    case 'e': i_caracter = Leer.Read(); break;
+                    default: Error(i_caracter); break;
                 }
-
-
             } while (i_caracter != -1);
 
+            Escribir.Write("Fin\n");
+            richTextBox2.Clear();
+            richTextBox2.AppendText("Errores: " + N_error + "\n");
             Escribir.Close();
             Leer.Close();
-            N_error = 0; Numero_linea = 1;
+            AnalizadorSintactico();
+
+        }
+
+        private void AnalizadorSintactico()
+        {
+            Numero_linea = 1;
             Leer = new StreamReader(archivoback);
+            token = Leer.ReadLine();
             Cabecera();
-            Escribir.Close();
             Leer.Close();
         }
+
+
+
+
         private void Cabecera()
         {
             token = Leer.ReadLine();
+            if (token == null || token == "Fin") return;
 
             switch (token)
             {
-                case "#": DireProc(); Numero_linea++; break;
-                case "LF": Numero_linea++; Cabecera(); break;
-                case "Comentario": token = Leer.ReadLine(); Numero_linea++; Cabecera(); break;
-                default: ErrorS("Ya empieza el main"); break;
-            }
+                case "#":
+                    token = Leer.ReadLine();
+                    if (token == null) { Error("Directiva incompleta después de '#'"); return; }
+                    Directiva_proc();
+                    Cabecera();
+                    break;
 
+                // Tipos de datos que manejamos como variables globales
+                case "int":
+                case "float":
+                case "double":
+                case "char":
+                case "Tipo":
+                    Dec_VGlobal();
+                    Cabecera();
+                    break;
+
+                case "main":
+                    // Reconocer main()
+                    token = Leer.ReadLine();
+                    Cabecera();
+                    break;
+
+                default:
+                    Cabecera();
+                    break;
+            }
         }
-        private void DireProc()
+
+
+
+
+
+        private void Directiva_proc()
         {
-            token = Leer.ReadLine();
-            Numero_linea++;
-            if (token == "include")
+            while (token == "LF") token = Leer.ReadLine();
+
+            if (token == null)
             {
-                DireInclude();
+                Error("Directiva incompleta después de '#'");
+
             }
-            else
+
+            switch (token)
             {
-                N_error++;
-                ErrorS("Se esperaba una directiva include");
+                case "include":
+                    Directiva_include();
+                    break;
+
+                case "define":
+                    token = Leer.ReadLine();
+                    while (token == "LF") token = Leer.ReadLine();
+                    if (token == null)
+                    {
+                        Error("Directiva 'define' incompleta.");
+                        break;
+                    }
+
+                    break;
+
+                default:
+                    Error($"Se esperaba 'include' o 'define' después de '#', pero se encontró '{token}'");
+                    break;
             }
         }
 
-        private void DireInclude()
+        private void Directiva_include()
         {
-
-
             token = Leer.ReadLine();
             Numero_linea++;
             switch (token)
@@ -524,41 +577,254 @@ namespace Editor_de_txt
                 case "<":
                     token = Leer.ReadLine();
                     Numero_linea++;
-                    if (token == "Libreria")
+                    if (token == "libreria")
                     {
                         token = Leer.ReadLine();
                         Numero_linea++;
                         if (token == ">")
                         {
-                            Cabecera();
                         }
                         else
                         {
                             N_error++;
-                            ErrorS("Se esperaba >");
+                            Error("Se esperaba >");
 
                         }
                     }
                     else
                     {
                         N_error++;
-                        ErrorS("Se esperaba Libreria");
+                        Error("Se esperaba Libreria");
                     }
                     break;
-                case "cadena":
-                    Numero_linea++; Cabecera();
+                case "Cadena":
                     break;
 
-                default: N_error++; ErrorS("Se esperaba alguna directiva include "); break;
+                default: N_error++; Error("Se esperaba alguna directiva include "); break;
 
-            
+
+            }
+
+        }
+        private void Declaracion()
+        {
+            token = Leer.ReadLine();
+            if (token != null) Numero_linea++;
+
+            if (token == "identificador")
+            {
+                Dec_VGlobal();
+            }
+            else if (token == "main")
+            {
+                do
+                {
+                    token = Leer.ReadLine();
+                    if (token == null || token == "Fin") break;
+                } while (token != "{");
+            }
+            else if (token == ";")
+            {
+                token = Leer.ReadLine();
+            }
+            else
+            {
+                Error("Falta identificador en declaración");
+                token = Leer.ReadLine();
             }
         }
-    
 
+        private void D_Arreglos()
+        {
+            while (token == "[")
+            {
+                token = Leer.ReadLine();
+                if (token != null) Numero_linea++;
 
-        
+                if (token == "numero_entero" || token == "identificador")
+                {
+                    token = Leer.ReadLine();
+                    if (token != null) Numero_linea++;
+                    if (token != "]")
+                    {
+                        ErrorS(token, "]");
+                        return;
+                    }
+                    token = Leer.ReadLine();
+                    if (token != null) Numero_linea++;
+                }
+                else
+                {
+                    ErrorS(token, "número entero o identificador para tamaño del arreglo");
+                    return;
+                }
+            }
 
+            // Inicialización opcional
+            if (token == "=")
+            {
+                token = Leer.ReadLine();
+                if (token == "{")
+                {
+                    BloqueInicializacion();
+                    if (token != ";")
+                    {
+                        ErrorS(token, ";");
+                    }
+                    else
+                    {
+                        token = Leer.ReadLine();
+                    }
+                }
+                else
+                {
+                    ErrorS(token, "{");
+                }
+            }
+            else if (token == ";")
+            {
+                token = Leer.ReadLine();
+            }
+            else
+            {
+                ErrorS(token, "declaración válida para arreglos");
+            }
+        }
 
+        private void Dec_VGlobal()
+        {
+            string tipo = token;
+
+            // Leer identificador
+            token = Leer.ReadLine();
+            if (token == null) { Error("Se esperaba identificador después del tipo de dato"); return; }
+
+            if (token != "identificador")
+            {
+                ErrorS(token, "identificador");
+                return;
+            }
+
+            token = Leer.ReadLine();
+            if (token == null) { Error("Se esperaba ';', '=' o '[' después del identificador"); return; }
+
+            // Manejar arreglos (multidimensionales)
+            while (token == "[")
+            {
+                token = Leer.ReadLine();
+                if (token == null) { Error("Se esperaba tamaño de arreglo"); return; }
+
+                if (token != "numero_entero" && token != "identificador")
+                {
+                    ErrorS(token, "número entero o identificador para tamaño del arreglo");
+                    return;
+                }
+
+                token = Leer.ReadLine();
+                if (token != "]")
+                {
+                    ErrorS(token, "]");
+                    return;
+                }
+
+                token = Leer.ReadLine();
+                if (token == null) { Error("Se esperaba ';' o '=' después del arreglo"); return; }
+            }
+
+            // Inicialización opcional
+            if (token == "=")
+            {
+                token = Leer.ReadLine();
+                if (token == null) { Error("Se esperaba valor después de '='"); return; }
+
+                // Arreglo inicializado con { ... }
+                if (token == "{")
+                {
+                    BloqueInicializacion();
+                    if (token != ";")
+                    {
+                        ErrorS(token, ";");
+                        return;
+                    }
+                    token = Leer.ReadLine();
+                    return;
+                }
+
+                // Variable simple inicializada
+                if (token == "-") token = Leer.ReadLine();
+                if (token == null) { Error("Se esperaba valor después de '-'"); return; }
+
+                if (token != "numero_entero" && token != "numero_real" && token != "Cadena" && token != "caracter")
+                {
+                    ErrorS(token, "valor válido para inicialización");
+                    return;
+                }
+
+                token = Leer.ReadLine();
+                if (token == ".")
+                {
+                    token = Leer.ReadLine();
+                    if (token != "numero_entero")
+                    {
+                        ErrorS(token, "número después del punto decimal");
+                        return;
+                    }
+                    token = Leer.ReadLine();
+                }
+            }
+
+            if (token != ";")
+            {
+                ErrorS(token, ";");
+                return;
+            }
+
+            token = Leer.ReadLine();
+        }
+
+        private void BloqueInicializacion()
+        {
+            if (token != "{")
+            {
+                ErrorS(token, "{");
+                return;
+            }
+
+            token =Leer.ReadLine();
+
+            while (token != "}")
+            {
+                if (token == "{")
+                {
+                    BloqueInicializacion();
+                }
+                else if (token == "numero_entero" || token == "numero_real" || token == "identificador" || token == "Cadena" || token == "caracter")
+                {
+                    token = Leer.ReadLine();
+                }
+                else
+                {
+                    ErrorS(token, "valor válido o sub-arreglo dentro de inicialización");
+                    return;
+                }
+
+                if (token == ",")
+                {
+                    token = Leer.ReadLine();
+                }
+                else if (token == "}")
+                {
+                    break;
+                }
+                else
+                {
+                    ErrorS(token, "',' o '}'");
+                    return;
+                }
+            }
+
+            token = Leer.ReadLine();
+
+        }
     }
 }
