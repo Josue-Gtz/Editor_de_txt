@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -425,13 +426,16 @@ namespace Editor_de_txt
         {
             richTextBox2.AppendText($"Error sintáctico: {mensaje}, línea {Numero_linea}\n");
             N_error++;
+            //Detiene todo el proceso inmediatamente.
+            throw new ErrorSintacticoException("Detener análisis");
         }
 
-
-        private void ErrorS(string e, string s)
+        private void ErrorS(string tokenActual, string esperado)
         {
-            richTextBox2.AppendText(" Error sintactico " + e + ", línea " + Numero_linea + " Se esperaba " + s + "\n");
+            richTextBox2.AppendText($"Error sintáctico {tokenActual}, línea {Numero_linea} Se esperaba {esperado}\n");
             N_error++;
+            //Detiene todo el proceso inmediatamente.
+            throw new ErrorSintacticoException("Detener análisis");
         }
         private void sintacticoToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -481,6 +485,7 @@ namespace Editor_de_txt
             Leer.Close();
             AnalizadorSintactico();
 
+            
         }
 
        
@@ -492,28 +497,35 @@ namespace Editor_de_txt
 
             SiguienteToken();
 
-            Cabecera();
+            try
+            {
+                Cabecera();
+
+                // Si llega aquí, es que no hubo errores
+                richTextBox2.AppendText("Análisis completado con éxito.\n");
+            }
+            catch (ErrorSintacticoException ex)
+            {
+                
+                richTextBox2.AppendText("El análisis se detuvo debido al error anterior.\n");
+            }
+
             Leer.Close();
         }
 
-        // --- MÉTODO CENTRALIZADO PARA LEER Y CONTAR LÍNEAS ---
         private void SiguienteToken()
         {
             token = Leer.ReadLine();
-            // Si tu analizador léxico guarda los saltos como "LF", esto los cuenta y los salta
-            // para que el parser solo vea código útil.
+            
             while (token == "LF")
             {
                 Numero_linea++;
                 token = Leer.ReadLine();
             }
         }
-        // -----------------------------------------------------
 
         private void Cabecera()
         {
-            // Nota: Ya no leemos al inicio porque AnalizadorSintactico ya leyó el primero,
-            // o la llamada recursiva anterior ya dejó listo el siguiente token.
 
             if (token == null || token == "Fin") return;
 
@@ -528,6 +540,7 @@ namespace Editor_de_txt
 
                 // Tipos de datos
                 case "int":
+
                 case "float":
                 case "double":
                 case "char":
@@ -537,12 +550,13 @@ namespace Editor_de_txt
                     break;
 
                 case "main":
-                    SiguienteToken(); // Consumimos 'main'
-                    Cabecera();
+                    Funcion_Main();  
                     break;
 
+
+
+
                 default:
-                    // Si no coincide con nada, avanzamos para evitar bucles infinitos si hay basura
                     SiguienteToken();
                     Cabecera();
                     break;
@@ -714,11 +728,9 @@ namespace Editor_de_txt
                 }
             }
 
-            // --- CORRECCIÓN FINAL ---
             if (token != ";")
             {
-                // Si el token NO es punto y coma, recuperamos la línea donde terminó la declaración.
-                // Esto evita que marque el error en la línea siguiente si se saltó un LF.
+                
                 Numero_linea = linea_para_error;
 
                 ErrorS(token, ";");
@@ -771,5 +783,505 @@ namespace Editor_de_txt
 
             SiguienteToken(); // Consumir la llave de cierre '}'
         }
+
+
+        private void Funcion_Main()
+        {
+            SiguienteToken(); // main
+
+            if (token != "(") { ErrorS(token, "("); return; }
+            SiguienteToken();
+
+            if (token != ")") { ErrorS(token, ")"); return; }
+            SiguienteToken();
+
+            
+            BloqueDeSentencias();
+        }
+
+
+
+
+
+        // Una clase simple para identificar cuando paramos por error
+        public class ErrorSintacticoException : Exception
+        {
+            public ErrorSintacticoException(string message) : base(message) { }
+        }
+
+
+
+        //Analizador de expresiones condicionales y aritméticas
+
+        // Nivel 1: Entrada principal (Maneja || y | |)
+        private void Condicion()
+        {
+            TerminoAND();
+
+            // Detectamos "||" junto o separado "|" + "|"
+            while (token == "||" || token == "|")
+            {
+                if (token == "|")
+                {
+                    SiguienteToken();
+                    if (token != "|") { ErrorS(token, "| (para completar el operador OR)"); return; }
+                }
+                SiguienteToken(); // Consumimos el segundo '|' o el token "||"
+                TerminoAND();
+            }
+        }
+
+        // Nivel 2: Maneja && y & &
+        private void TerminoAND()
+        {
+            ExpresionIgualdad();
+
+            // Detectamos "&&" junto o separado "&" + "&"
+            while (token == "&&" || token == "&")
+            {
+                if (token == "&")
+                {
+                    SiguienteToken();
+                    if (token != "&") { ErrorS(token, "& (para completar el operador AND)"); return; }
+                }
+                SiguienteToken(); // Consumimos el segundo '&' o el token "&&"
+                ExpresionIgualdad();
+            }
+        }
+
+        // Nivel 3: Maneja == y != (Con corrección para tokens separados)
+        private void ExpresionIgualdad()
+        {
+            ExpresionRelacional();
+
+            // Verificamos si es un operador de igualdad
+            bool esOperador = false;
+
+            // Caso especial: != o ! =
+            if (token == "!" || token == "!=")
+            {
+                if (token == "!")
+                {
+                    SiguienteToken();
+                    if (token == "=") { esOperador = true; SiguienteToken(); }
+                    else
+                    {
+                        
+                    }
+                }
+                else
+                { // token es "!="
+                    esOperador = true;
+                    SiguienteToken();
+                }
+            }
+            // Caso especial: == o = =
+            else if (token == "==" || token == "=")
+            {
+                if (token == "=")
+                {
+                    SiguienteToken();
+                    if (token == "=") { esOperador = true; SiguienteToken(); }
+                    
+                }
+                else
+                { 
+                    esOperador = true;
+                    SiguienteToken();
+                }
+            }
+
+            if (esOperador)
+            {
+                ExpresionRelacional();
+            }
+        }
+
+        // Nivel 4: Maneja <, >, <=, >= (Con corrección para tokens separados)
+        private void ExpresionRelacional()
+        {
+            ExpresionAritmetica(); // Lado izquierdo
+
+            string op = token;
+            bool esOperador = false;
+
+            // Detectar <, >, <=, >=, o separados < =, > =
+            if (op == "<" || op == ">" || op == "<=" || op == ">=")
+            {
+                esOperador = true;
+                SiguienteToken();
+
+                // Si el token era solo < o >, miramos si sigue un =
+                if ((op == "<" || op == ">") && token == "=")
+                {
+                    SiguienteToken(); // Consumimos el '=' extra (forma <= o >=)
+                }
+            }
+
+            if (esOperador)
+            {
+                ExpresionAritmetica(); // Lado derecho
+            }
+        }
+
+        // Nivel 5: Expresiones matemáticas simples (Suma/Resta) - Tu "Operando"
+        private void ExpresionAritmetica()
+        {
+            Termino(); // Multiplicación/División
+
+            while (token == "+" || token == "-")
+            {
+                SiguienteToken();
+                Termino();
+            }
+        }
+
+        // Nivel 6: Multiplicación y División
+        private void Termino()
+        {
+            Factor();
+            while (token == "*" || token == "/")
+            {
+                SiguienteToken();
+                Factor();
+            }
+        }
+
+        // Nivel 7: El dato base (Números, IDs, Paréntesis, NOT, Menos Unario)
+        private void Factor()
+        {
+            // 1. Manejo de operadores unarios (!, -, +)
+            if (token == "!" || token == "-" || token == "+")
+            {
+                SiguienteToken();
+                Factor(); // Recursividad: volvemos a llamar a Factor para leer el número que sigue
+                return;
+            }
+
+            // 2. Paréntesis 
+            if (token == "(")
+            {
+                SiguienteToken();
+                Condicion(); // Volvemos arriba para permitir (a < b || c > d)
+                if (token != ")")
+                {
+                    ErrorS(token, ")");
+                }
+                SiguienteToken();
+            }
+            // 3. Identificadores y Números
+            else if (token == "identificador" || token == "numero_entero" || token == "numero_real")
+            {
+                SiguienteToken();
+            }
+            else
+            {
+                // Si llegamos aquí y no es nada de lo anterior, es un error
+                ErrorS(token, "identificador, número, '(' o signo '-'");
+            }
+        }
+
+
+
+
+
+
+        //GESTOR DE BLOQUES Y SENTENCIAS
+        private void BloqueDeSentencias()
+        {
+            if (token != "{")
+            {
+                ErrorS(token, "{ (Se requiere abrir bloque con llave)");
+                return; 
+            }
+
+            SiguienteToken(); 
+            // Ciclo principal del bloque: lee hasta encontrar '}' o el fin del archivo
+            while (token != "}" && token != "Fin" && token != null)
+            {
+                switch (token)
+                {
+                    // Variables
+                    case "int":
+                    case "float":
+                    case "double":
+                    case "char":
+                    case "Tipo":
+                        Dec_VGlobal();
+                        break;
+
+                    // Estructuras de Control (Llamarán recursivamente a BloqueDeSentencias)
+                    case "if": EstructuraIf(); break;
+                    case "while": EstructuraWhile(); break;
+                    case "do": EstructuraDoWhile(); break;
+                    case "for": EstructuraFor(); break;
+                    case "switch": EstructuraSwitch(); break;
+
+                    // Rupturas
+                    case "break":
+                    case "continue":
+                    case "return":
+                        SiguienteToken();
+                        if (token == ";") SiguienteToken();
+                        else ErrorS(token, "; después de break/return");
+                        break;
+
+                    // Bloques anidados (Ámbitos hijos)
+                    case "{":
+                        BloqueDeSentencias();
+                        break;
+
+                    case ";": SiguienteToken(); break;
+
+                    // Asignaciones o llamadas
+                    case "identificador":
+                        Sentencia();
+                        break;
+
+                    default:
+                        ErrorS(token, "declaración o sentencia válida dentro del bloque");
+                        SiguienteToken();
+                        break;
+                }
+            }
+
+            if (token == "}")
+            {
+                SiguienteToken();
+            }
+            else
+            {
+                ErrorS(token, "}");
+            }
+        }
+
+        //                         SENTENCIA SIMPLE
+
+        private void Sentencia()
+        {
+            SiguienteToken();
+
+            // Caso 1: Asignación ( a = )
+            if (token == "=")
+            {
+                SiguienteToken();
+
+                
+                Condicion();
+
+                if (token == ";") SiguienteToken();
+                else ErrorS(token, "; al final de la asignación");
+            }
+            // Caso 2: Llamada a función o expresión sola 
+            else if (token == ";")
+            {
+                SiguienteToken();
+            }
+            // Caso 3: Operadores unarios comunes como ++ o -- (si tu lexer los soporta)
+            else if (token == "+" || token == "-")
+            {
+                // Consumir el segundo + o - si existe y luego el ;
+                SiguienteToken();
+                if (token == ";") SiguienteToken();
+            }
+            else
+            {
+                ErrorS(token, "= o ;");
+            }
+        }
+
+        private void SentenciaOBloque()
+        {
+            if (token == "{")
+            {
+                BloqueDeSentencias();
+            }
+            else
+            {
+                // Si no es bloque, DEBE ser una sentencia simple (asignación/llamada)
+                if (token == "identificador")
+                {
+                    Sentencia();
+                }
+                else if (token == ";")
+                {
+                    SiguienteToken();
+                }
+                else
+                {
+                    ErrorS(token, "sentencia o '{'");
+                }
+            }
+        }
+
+        //ESTRUCTURAS DE CONTROL
+
+        // if else
+        private void EstructuraIf()
+        {
+            SiguienteToken(); // if
+            if (token != "(") { ErrorS(token, "("); return; }
+            SiguienteToken();
+            Condicion();
+            if (token != ")") { ErrorS(token, ")"); return; }
+            SiguienteToken();
+
+            BloqueDeSentencias();
+
+            if (token == "else")
+            {
+                SiguienteToken();
+                BloqueDeSentencias();
+            }
+        }
+
+        // while
+        private void EstructuraWhile()
+        {
+            SiguienteToken(); // while
+            if (token != "(") { ErrorS(token, "("); return; }
+            SiguienteToken();
+            Condicion();
+            if (token != ")") { ErrorS(token, ")"); return; }
+            SiguienteToken();
+
+            BloqueDeSentencias();
+        }
+
+        // dowhile
+        private void EstructuraDoWhile()
+        {
+            SiguienteToken(); 
+
+            SentenciaOBloque();
+
+            if (token != "while") { ErrorS(token, "while"); return; }
+            SiguienteToken();
+
+            if (token != "(") { ErrorS(token, "("); return; }
+            SiguienteToken();
+
+            Condicion();
+
+            if (token != ")") { ErrorS(token, ")"); return; }
+            SiguienteToken();
+
+            if (token != ";") { ErrorS(token, ";"); return; }
+            SiguienteToken();
+        }
+
+        // FOR
+        private void EstructuraFor()
+        {
+            SiguienteToken(); 
+            if (token != "(") { ErrorS(token, "("); return; }
+            SiguienteToken();
+
+            // 1. Inicialización (Opcional)
+            if (token != ";")
+            {
+                if (token == "int" || token == "float") Dec_VGlobal(); // Declaración local en for
+                else if (token == "identificador") Sentencia();
+                else { /* Manejar error o vacío */ }
+            }
+            else SiguienteToken(); // Si estaba vacío, consumimos ;
+
+            // 2. Condición 
+            if (token != ";")
+            {
+                Condicion();
+            }
+            if (token != ";") { ErrorS(token, "; separador en for"); return; }
+            SiguienteToken();
+
+            // 3. Progresión 
+            if (token != ")")
+            {
+                if (token == "identificador")
+                {
+                    SiguienteToken();
+                    if (token == "=")
+                    {
+                        SiguienteToken();
+                        Condicion(); // Evaluamos la expresión
+                    }
+                }
+            }
+
+            if (token != ")") { ErrorS(token, ")"); return; }
+            SiguienteToken();
+
+            BloqueDeSentencias();
+        }
+
+        // switch
+        private void EstructuraSwitch()
+        {
+            SiguienteToken(); 
+            if (token != "(") { ErrorS(token, "("); return; }
+            SiguienteToken();
+
+            // Expresión a evaluar 
+
+            if (token != ")") { ErrorS(token, ")"); return; }
+            SiguienteToken();
+
+            if (token != "{") { ErrorS(token, "{"); return; }
+            SiguienteToken();
+
+            // Cuerpo del Switch
+            while (token != "}" && token != "Fin")
+            {
+                if (token == "case")
+                {
+                    SiguienteToken();
+                    // Se espera una constante (número o char)
+                    if (token == "numero_entero" || token == "caracter")
+                    {
+                        SiguienteToken();
+                    }
+                    else ErrorS(token, "constante o caracter para case");
+
+                    if (token != ":") ErrorS(token, ":");
+                    else SiguienteToken();
+
+                    // Aquí pueden venir sentencias hasta el siguiente case/default/}
+                    // Para simplificar: Leemos sentencias sueltas hasta ver 'case', 'default' o '}'
+                    while (token != "case" && token != "default" && token != "}" && token != "Fin")
+                    {
+                        // Usamos un switch interno o llamamos lógica similar a Bloque
+                       
+                        // Solución rápida: Permitir una sola instrucción o bloque, o break.
+                        if (token == "break") { SiguienteToken(); if (token == ";") SiguienteToken(); }
+                        else if (token == "{") BloqueDeSentencias();
+                        else if (token == "identificador") Sentencia();
+                        else break; // Salir si no reconocemos nada 
+                    }
+                }
+                else if (token == "default")
+                {
+                    SiguienteToken();
+                    if (token != ":") ErrorS(token, ":");
+                    else SiguienteToken();
+
+                    // Mismo tratamiento que case
+                    while (token != "case" && token != "}" && token != "Fin")
+                    {
+                        if (token == "break") { SiguienteToken(); if (token == ";") SiguienteToken(); }
+                        else if (token == "{") BloqueDeSentencias();
+                        else if (token == "identificador") Sentencia();
+                        else break;
+                    }
+                }
+                else
+                {
+                    if (token != "}") SiguienteToken();
+                }
+            }
+            if (token == "}") SiguienteToken();
+        }
+
+        
+
     }
 }
