@@ -9,7 +9,7 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-
+//aja
 namespace Editor_de_txt
 {
     public partial class Form1 : Form
