@@ -488,10 +488,33 @@ namespace Editor_de_txt
             
         }
 
+        private void tipito()
+        {
+            string[] lineas = File.ReadAllLines(archivoback);
+            using (StreamWriter writer = new StreamWriter(archivoback))
+            {
+                foreach (string palabra in lineas)
+                {
+                    // Limpiamos espacios en blanco para evitar errores de comparación
+
+                    // Si la palabra está en nuestra lista de tipos, escribimos "tipo"
+                    if (P_Res_Tipo.Contains(palabra))
+                    {
+                        writer.WriteLine("tipo");
+                    }
+                    else
+                    {
+                        // Si no es un tipo, dejamos la palabra original
+                        writer.WriteLine(palabra);
+                    }
+                }
+            }
+        }
        
 
         private void AnalizadorSintactico()
         {
+            tipito();
             Numero_linea = 1;
             Leer = new StreamReader(archivoback);
 
@@ -540,11 +563,10 @@ namespace Editor_de_txt
 
                 // Tipos de datos
                 case "int":
-
                 case "float":
                 case "double":
                 case "char":
-                case "Tipo":
+                case "tipo":
                     Dec_VGlobal();
                     Cabecera();
                     break;
@@ -677,7 +699,15 @@ namespace Editor_de_txt
                 SiguienteToken();
                 if (token == null) { Error("Se esperaba ';' o '=' después del arreglo"); return; }
             }
-
+           
+            
+            if (token == "(")
+            {
+                SiguienteToken();
+                if (token != ")") { Funcion(); }
+                else { BloqueDeSentencias(); }
+            }
+            
             // Inicialización opcional
             if (token == "=")
             {
@@ -737,6 +767,7 @@ namespace Editor_de_txt
                 return;
             }
 
+            
             SiguienteToken();
         }
 
@@ -1282,6 +1313,44 @@ namespace Editor_de_txt
         }
 
         
+
+
+        private void Funcion()
+        {
+            while (token != ")")
+            {
+
+                if (token == "tipo")
+                {
+                    SiguienteToken();
+                    if (token == "identificador")
+                    {
+                        SiguienteToken();
+                        if (token == ",") 
+                        {
+                            SiguienteToken();
+                        }
+                    }
+                    else
+                    {
+                        Error("Se esperaba identificador "); return;
+                    }
+
+                }
+                else
+                {
+                    Error("Se esperaba tipo de variable "); return;
+                }
+            }
+            if (token == ")") 
+            { BloqueDeSentencias(); }
+            else { Error("Se esperaba ) ");return; }
+        }
+
+
+
+
+
 
     }
 }
