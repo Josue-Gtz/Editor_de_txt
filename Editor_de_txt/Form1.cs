@@ -704,8 +704,7 @@ namespace Editor_de_txt
             if (token == "(")
             {
                 SiguienteToken();
-                if (token != ")") { Funcion(); }
-                else { BloqueDeSentencias(); }
+                Funcion(); 
             }
             
             // Inicialización opcional
@@ -758,12 +757,12 @@ namespace Editor_de_txt
                 }
             }
 
-            if (token != ";")
+            if (token != ";"&& token != "tipo")
             {
                 
                 Numero_linea = linea_para_error;
 
-                ErrorS(token, ";");
+                ErrorS(token, ";a");
                 return;
             }
 
@@ -1027,7 +1026,7 @@ namespace Editor_de_txt
             }
 
             SiguienteToken(); 
-            // Ciclo principal del bloque: lee hasta encontrar '}' o el fin del archivo
+            // Ciclo principal del bloque: lee hasta encontrar } o el fin del archivo
             while (token != "}" && token != "Fin" && token != null)
             {
                 switch (token)
@@ -1037,11 +1036,11 @@ namespace Editor_de_txt
                     case "float":
                     case "double":
                     case "char":
-                    case "Tipo":
+                    case "tipo":
                         Dec_VGlobal();
                         break;
 
-                    // Estructuras de Control (Llamarán recursivamente a BloqueDeSentencias)
+                    // Estructuras de Control 
                     case "if": EstructuraIf(); break;
                     case "while": EstructuraWhile(); break;
                     case "do": EstructuraDoWhile(); break;
@@ -1317,7 +1316,7 @@ namespace Editor_de_txt
 
         private void Funcion()
         {
-            while (token != ")")
+            while (token != "{" && token != ";")
             {
 
                 if (token == "tipo")
@@ -1326,10 +1325,12 @@ namespace Editor_de_txt
                     if (token == "identificador")
                     {
                         SiguienteToken();
-                        if (token == ",") 
+                        if (token != "," && token != ")") 
                         {
-                            SiguienteToken();
+                            ErrorS(token, ", o )");
                         }
+                        else { SiguienteToken(); }
+                        
                     }
                     else
                     {
@@ -1337,20 +1338,20 @@ namespace Editor_de_txt
                     }
 
                 }
+
+                if (token == ")")
+                {
+                    SiguienteToken();
+
+                }
                 else
                 {
-                    Error("Se esperaba tipo de variable "); return;
+                    ErrorS(token, " tipo de variable "); return;
                 }
             }
-            if (token == ")") 
-            { BloqueDeSentencias(); }
-            else { Error("Se esperaba ) ");return; }
+
+            if(token !=";")
+            {BloqueDeSentencias(); }
         }
-
-
-
-
-
-
     }
 }
