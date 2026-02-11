@@ -757,12 +757,12 @@ namespace Editor_de_txt
                 }
             }
 
-            if (token != ";"&& token != "tipo")
+            if (token != ";" && token != "(")
             {
                 
                 Numero_linea = linea_para_error;
 
-                ErrorS(token, ";a");
+                ErrorS(token, "; o ( ");
                 return;
             }
 
@@ -1339,7 +1339,7 @@ namespace Editor_de_txt
 
                 }
 
-                if (token == ")")
+                else if (token == ")")
                 {
                     SiguienteToken();
 
