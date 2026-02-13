@@ -673,7 +673,16 @@ namespace Editor_de_txt
             linea_para_error = Numero_linea;
             SiguienteToken();
 
-            if (token == null) { Error("Se esperaba ';', '=' o '[' después del identificador"); return; }
+            if (token == null) { Error("Se esperaba ';', '=' , '[' o '(' después del identificador"); return; }
+
+            if (token == "(")
+            {
+
+                SiguienteToken();
+                Funcion();
+                return;
+
+            }
 
             // Manejar arreglos
             while (token == "[")
@@ -701,11 +710,7 @@ namespace Editor_de_txt
             }
            
             
-            if (token == "(")
-            {
-                SiguienteToken();
-                Funcion(); 
-            }
+            
             
             // Inicialización opcional
             if (token == "=")
@@ -757,9 +762,9 @@ namespace Editor_de_txt
                 }
             }
 
-            if (token != ";" && token != "(")
+            if (token != ";" )
             {
-                
+                //&& token != "("
                 Numero_linea = linea_para_error;
 
                 ErrorS(token, "; o ( ");
@@ -1327,7 +1332,7 @@ namespace Editor_de_txt
                         SiguienteToken();
                         if (token != "," && token != ")") 
                         {
-                            ErrorS(token, ", o )");
+                            ErrorS(token, ", o )");return;
                         }
                         else { SiguienteToken(); }
                         
@@ -1342,6 +1347,11 @@ namespace Editor_de_txt
                 else if (token == ")")
                 {
                     SiguienteToken();
+                    
+                    if (token == "{")
+                    { BloqueDeSentencias(); }
+                    else if (token == ";") { return; }
+                    else { ErrorS(token, "; o {");return; }
 
                 }
                 else
@@ -1350,7 +1360,7 @@ namespace Editor_de_txt
                 }
             }
 
-            if(token !=";")
+            if(token =="{")
             {BloqueDeSentencias(); }
         }
     }
