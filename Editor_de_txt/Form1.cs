@@ -1074,7 +1074,7 @@ namespace Editor_de_txt
                         break;
 
                     default:
-                        ErrorS(token, "declaración o sentencia válida dentro del bloque");
+                        ErrorS(token, "declaración o sentencia válida dentro del bloque o cierre '}'");
                         SiguienteToken();
                         break;
                 }
@@ -1321,7 +1321,7 @@ namespace Editor_de_txt
 
         private void Funcion()
         {
-            while (token != "{" && token != ";")
+            while (token != "{")
             {
 
                 if (token == "tipo")
@@ -1333,6 +1333,11 @@ namespace Editor_de_txt
                         if (token != "," && token != ")") 
                         {
                             ErrorS(token, ", o )");return;
+                        }
+                        else if (token == ")") 
+                        { SiguienteToken();
+                          if (token == ";") { return; }
+                          else { BloqueDeSentencias();return;  }
                         }
                         else { SiguienteToken(); }
                         
@@ -1349,7 +1354,7 @@ namespace Editor_de_txt
                     SiguienteToken();
                     
                     if (token == "{")
-                    { BloqueDeSentencias(); }
+                    { BloqueDeSentencias();return; }
                     else if (token == ";") { return; }
                     else { ErrorS(token, "; o {");return; }
 
@@ -1361,7 +1366,7 @@ namespace Editor_de_txt
             }
 
             if(token =="{")
-            {BloqueDeSentencias(); }
+            {BloqueDeSentencias();return; }
         }
     }
 }
