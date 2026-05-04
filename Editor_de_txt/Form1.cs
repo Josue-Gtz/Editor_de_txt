@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -343,7 +344,7 @@ namespace Editor_de_txt
             else
             {
                 if (Palabra_Reservada()) Escribir.Write(elemento.ToLower() + "\n");
-                else Escribir.Write("identificador\n");
+                else Escribir.Write("identificador\n"+elemento+"\n");
             }
         }
         private List<string> P_Reservadas = new List<string> {
@@ -439,6 +440,7 @@ namespace Editor_de_txt
         }
         private void sintacticoToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            LimpiarArchivosCsv();
 
             guardar();
 
@@ -485,35 +487,33 @@ namespace Editor_de_txt
             Leer.Close();
             AnalizadorSintactico();
 
-            
+
         }
 
         private void tipito()
         {
             string[] lineas = File.ReadAllLines(archivoback);
+
             using (StreamWriter writer = new StreamWriter(archivoback))
             {
                 foreach (string palabra in lineas)
                 {
-                    // Limpiamos espacios en blanco para evitar errores de comparación
+                    // Si la palabra está en nuestra lista de tipos
+                    if (P_Res_Tipo.Contains(palabra.Trim()))
+                    {
+                        writer.WriteLine("tipo"); // Escribimos la etiqueta arriba
+                    }
 
-                    // Si la palabra está en nuestra lista de tipos, escribimos "tipo"
-                    if (P_Res_Tipo.Contains(palabra))
-                    {
-                        writer.WriteLine("tipo");
-                    }
-                    else
-                    {
-                        // Si no es un tipo, dejamos la palabra original
-                        writer.WriteLine(palabra);
-                    }
+                    // Siempre escribimos la palabra original (esté o no en la lista)
+                    writer.WriteLine(palabra);
                 }
             }
         }
-       
+
 
         private void AnalizadorSintactico()
         {
+
             tipito();
             Numero_linea = 1;
             Leer = new StreamReader(archivoback);
@@ -529,7 +529,7 @@ namespace Editor_de_txt
             }
             catch (ErrorSintacticoException ex)
             {
-                
+
                 richTextBox2.AppendText("El análisis se detuvo debido al error anterior.\n");
             }
 
@@ -539,7 +539,7 @@ namespace Editor_de_txt
         private void SiguienteToken()
         {
             token = Leer.ReadLine();
-            
+
             while (token == "LF")
             {
                 Numero_linea++;
@@ -549,7 +549,7 @@ namespace Editor_de_txt
 
         private void Cabecera()
         {
-
+            origen = "Global";
             if (token == null || token == "Fin") return;
 
             switch (token)
@@ -567,12 +567,14 @@ namespace Editor_de_txt
                 case "double":
                 case "char":
                 case "tipo":
+                    SiguienteToken();
                     Dec_VGlobal();
                     Cabecera();
                     break;
 
                 case "main":
-                    Funcion_Main();  
+                    origen = "main";
+                    Funcion_Main();
                     break;
 
 
@@ -656,6 +658,7 @@ namespace Editor_de_txt
 
         private void Dec_VGlobal()
         {
+            tipoVar = token;
             // 1. Variable para recordar la línea donde termina la instrucción
             int linea_para_error = Numero_linea;
 
@@ -668,13 +671,15 @@ namespace Editor_de_txt
                 ErrorS(token, "identificador");
                 return;
             }
-
+            SiguienteToken();
+            nombreVar = token;
             // Actualizamos la línea antes de buscar el siguiente símbolo (; o =)
             linea_para_error = Numero_linea;
             SiguienteToken();
 
             if (token == null) { Error("Se esperaba ';', '=' , '[' o '(' después del identificador"); return; }
-
+            origenF = token;
+            
             if (token == "(")
             {
 
@@ -708,10 +713,10 @@ namespace Editor_de_txt
                 SiguienteToken();
                 if (token == null) { Error("Se esperaba ';' o '=' después del arreglo"); return; }
             }
-           
-            
-            
-            
+
+
+
+
             // Inicialización opcional
             if (token == "=")
             {
@@ -762,7 +767,7 @@ namespace Editor_de_txt
                 }
             }
 
-            if (token != ";" )
+            if (token != ";")
             {
                 //&& token != "("
                 Numero_linea = linea_para_error;
@@ -771,8 +776,9 @@ namespace Editor_de_txt
                 return;
             }
 
-            
+
             SiguienteToken();
+            RegistrarVariableEnCsv(nombreVar,tipoVar,origen);
         }
 
         private void BloqueInicializacion()
@@ -830,7 +836,7 @@ namespace Editor_de_txt
             if (token != ")") { ErrorS(token, ")"); return; }
             SiguienteToken();
 
-            
+
             BloqueDeSentencias();
         }
 
@@ -901,7 +907,7 @@ namespace Editor_de_txt
                     if (token == "=") { esOperador = true; SiguienteToken(); }
                     else
                     {
-                        
+
                     }
                 }
                 else
@@ -917,10 +923,10 @@ namespace Editor_de_txt
                 {
                     SiguienteToken();
                     if (token == "=") { esOperador = true; SiguienteToken(); }
-                    
+
                 }
                 else
-                { 
+                {
                     esOperador = true;
                     SiguienteToken();
                 }
@@ -997,7 +1003,7 @@ namespace Editor_de_txt
             if (token == "(")
             {
                 SiguienteToken();
-                Condicion(); // Volvemos arriba para permitir (a < b || c > d)
+                ExpresionNueva(); // Volvemos arriba para permitir (a < b || c > d)
                 if (token != ")")
                 {
                     ErrorS(token, ")");
@@ -1007,6 +1013,7 @@ namespace Editor_de_txt
             // 3. Identificadores y Números
             else if (token == "identificador" || token == "numero_entero" || token == "numero_real")
             {
+
                 SiguienteToken();
             }
             else
@@ -1027,10 +1034,10 @@ namespace Editor_de_txt
             if (token != "{")
             {
                 ErrorS(token, "{ (Se requiere abrir bloque con llave)");
-                return; 
+                return;
             }
 
-            SiguienteToken(); 
+            SiguienteToken();
             // Ciclo principal del bloque: lee hasta encontrar } o el fin del archivo
             while (token != "}" && token != "Fin" && token != null)
             {
@@ -1042,6 +1049,7 @@ namespace Editor_de_txt
                     case "double":
                     case "char":
                     case "tipo":
+                        SiguienteToken();
                         Dec_VGlobal();
                         break;
 
@@ -1070,6 +1078,7 @@ namespace Editor_de_txt
 
                     // Asignaciones o llamadas
                     case "identificador":
+                        SiguienteToken();
                         Sentencia();
                         break;
 
@@ -1101,8 +1110,8 @@ namespace Editor_de_txt
             {
                 SiguienteToken();
 
-                
-                Condicion();
+
+                ExpresionNueva();
 
                 if (token == ";") SiguienteToken();
                 else ErrorS(token, "; al final de la asignación");
@@ -1157,7 +1166,7 @@ namespace Editor_de_txt
             SiguienteToken(); // if
             if (token != "(") { ErrorS(token, "("); return; }
             SiguienteToken();
-            Condicion();
+            ExpresionNueva();
             if (token != ")") { ErrorS(token, ")"); return; }
             SiguienteToken();
 
@@ -1176,7 +1185,7 @@ namespace Editor_de_txt
             SiguienteToken(); // while
             if (token != "(") { ErrorS(token, "("); return; }
             SiguienteToken();
-            Condicion();
+            ExpresionNueva();
             if (token != ")") { ErrorS(token, ")"); return; }
             SiguienteToken();
 
@@ -1186,7 +1195,7 @@ namespace Editor_de_txt
         // dowhile
         private void EstructuraDoWhile()
         {
-            SiguienteToken(); 
+            SiguienteToken();
 
             SentenciaOBloque();
 
@@ -1196,7 +1205,7 @@ namespace Editor_de_txt
             if (token != "(") { ErrorS(token, "("); return; }
             SiguienteToken();
 
-            Condicion();
+            ExpresionNueva();
 
             if (token != ")") { ErrorS(token, ")"); return; }
             SiguienteToken();
@@ -1208,7 +1217,7 @@ namespace Editor_de_txt
         // FOR
         private void EstructuraFor()
         {
-            SiguienteToken(); 
+            SiguienteToken();
             if (token != "(") { ErrorS(token, "("); return; }
             SiguienteToken();
 
@@ -1224,7 +1233,7 @@ namespace Editor_de_txt
             // 2. Condición 
             if (token != ";")
             {
-                Condicion();
+                ExpresionNueva();
             }
             if (token != ";") { ErrorS(token, "; separador en for"); return; }
             SiguienteToken();
@@ -1238,7 +1247,7 @@ namespace Editor_de_txt
                     if (token == "=")
                     {
                         SiguienteToken();
-                        Condicion(); // Evaluamos la expresión
+                        ExpresionNueva(); // Evaluamos la expresión
                     }
                 }
             }
@@ -1252,7 +1261,7 @@ namespace Editor_de_txt
         // switch
         private void EstructuraSwitch()
         {
-            SiguienteToken(); 
+            SiguienteToken();
             if (token != "(") { ErrorS(token, "("); return; }
             SiguienteToken();
 
@@ -1285,7 +1294,7 @@ namespace Editor_de_txt
                     while (token != "case" && token != "default" && token != "}" && token != "Fin")
                     {
                         // Usamos un switch interno o llamamos lógica similar a Bloque
-                       
+
                         // Solución rápida: Permitir una sola instrucción o bloque, o break.
                         if (token == "break") { SiguienteToken(); if (token == ";") SiguienteToken(); }
                         else if (token == "{") BloqueDeSentencias();
@@ -1316,35 +1325,49 @@ namespace Editor_de_txt
             if (token == "}") SiguienteToken();
         }
 
-        
+
 
 
         private void Funcion()
         {
+
+            origenAUX = origen;
+            origen = origenF;
             while (token != "{")
             {
 
                 if (token == "tipo")
                 {
                     SiguienteToken();
+                    tipoT = token;
+
+                    SiguienteToken();
                     if (token == "identificador")
                     {
                         SiguienteToken();
-                        if (token != "," && token != ")") 
+                        nombreT = token;
+
+                        SiguienteToken();
+                        preDatos = tipoT + " " + nombreT+ ",";
+                        TipoDeDatos.Add(preDatos);
+                        tipoDato = String.Join(", ", TipoDeDatos);
+                        if (token != "," && token != ")")
                         {
-                            ErrorS(token, ", o )");return;
+                            ErrorS(token, ", o )"); return;
                         }
-                        else if (token == ")") 
-                        { SiguienteToken();
-                          if (token == ";") { return; }
-                          else { BloqueDeSentencias();return;  }
+                        else if (token == ")")
+                        {
+                            n_para += 1;  SiguienteToken();
+                            
+                            if (token == ";") { return; }
+                            else { origen = origenAUX; RegistrarFuncionEnCsv(nombreVar, tipoVar, n_para, tipoDato); BloqueDeSentencias();  return; }
                         }
                         else { SiguienteToken(); }
-                        
+
                     }
                     else
                     {
-                        Error("Se esperaba identificador "); return;
+                        Error("Se esperaba identificadora "); return;
                     }
 
                 }
@@ -1352,11 +1375,11 @@ namespace Editor_de_txt
                 else if (token == ")")
                 {
                     SiguienteToken();
-                    
+
                     if (token == "{")
-                    { BloqueDeSentencias();return; }
+                    { BloqueDeSentencias(); return; }
                     else if (token == ";") { return; }
-                    else { ErrorS(token, "; o {");return; }
+                    else { ErrorS(token, "; o {"); return; }
 
                 }
                 else
@@ -1365,8 +1388,272 @@ namespace Editor_de_txt
                 }
             }
 
-            if(token =="{")
-            {BloqueDeSentencias();return; }
+            if (token == "{")
+            { BloqueDeSentencias(); return; }
         }
+
+        public void RegistrarVariableEnCsv(string nombre, string tipo, string origen = "")
+        {
+            string archivoSalida = "tablaV.csv";
+
+            if (!File.Exists(archivoSalida))
+            {
+                File.WriteAllText(archivoSalida, "Origen,Nombre,Tipo\n", Encoding.UTF8);
+            }
+
+            
+            string nuevaFila = $"{origen},{nombre},{tipo}\n";
+
+            File.AppendAllText(archivoSalida, nuevaFila, Encoding.UTF8);
+        }
+
+
+        public void RegistrarFuncionEnCsv(string nombre, string tipo, int numero_para, string Tipos_datos)
+        {
+            string archivoSalida = "tablaF.csv";
+
+            if (!File.Exists(archivoSalida))
+            {
+                File.WriteAllText(archivoSalida, "Nombre,Tipo,Numero de parametros,Tipos de datos\n", Encoding.UTF8);
+            }
+
+           
+            string nuevaFila = $"{nombre},{tipo},{numero_para},{Tipos_datos}\n";
+
+            File.AppendAllText(archivoSalida, nuevaFila, Encoding.UTF8);
+        }
+
+
+
+
+        /// <summary>
+      
+        /// </summary>
+        
+
+        // 2. Función para los OPERANDOS
+        private void Operandos()
+        {
+            switch (token)
+            {
+                case "identificador":
+                    // Recordando tu lexer: hacemos el doble salto
+                    SiguienteToken(); // Consume la palabra "identificador"
+                    SiguienteToken(); // Consume el nombre de la variable
+
+                    // Verificamos si es una "Invocación a función"
+                    if (token == "(")
+                    {
+                        SiguienteToken(); // Consumimos el '('
+
+                        // Leemos los argumentos separados por comas
+                        while (token != ")" && token != "Fin" && token != null)
+                        {
+                            ExpresionNueva();
+                            if (token == ",") SiguienteToken();
+                        }
+
+                        if (token == ")") SiguienteToken();
+                        else ErrorS(token, ") para cerrar la invocación a la función");
+                    }
+                    break;
+
+                case "numero_entero":
+                case "numero_real":
+                case "caracter":
+                case "true":
+                case "false":
+                    SiguienteToken(); // Todos estos solo ocupan avanzar una vez
+                    break;
+
+                default:
+                    ErrorS(token, "identificador, número, caracter o booleano");
+                    break;
+            }
+        }
+
+
+
+        // 1. Función principal de EXPRESIÓN
+        private void ExpresionNueva()
+        {
+            // 1. Siempre leemos el primer lado de la expresión (ej. el '12' o un paréntesis)
+            ElementoExpresion();
+
+            // 2. Mientras haya operadores binarios, iteramos para leer el lado derecho
+            while (token == "+" || token == "-" || token == "*" || token == "/" || token == "%" ||
+                   token == "<" || token == ">" || token == "=" || token == "!" || token == "&" || token == "|")
+            {
+                OperadorBinario();   // Consumimos el operador (ej. '/')
+                ElementoExpresion(); // Leemos lo que le sigue (ej. el '(' y todo su contenido)
+            }
+        }
+
+        // 2. Función auxiliar para leer los componentes de la expresión
+        // 2. Función auxiliar para leer los componentes de la expresión
+        private void ElementoExpresion()
+        {
+            // Caso A: Es una sub-expresión entre paréntesis
+            if (token == "(")
+            {
+                SiguienteToken(); // Consumimos el '('
+
+                ExpresionNueva(); // ¡RECURSIVIDAD! Evaluamos todo lo que está adentro
+
+                if (token == ")")
+                {
+                    SiguienteToken(); // Consumimos el ')' y terminamos este elemento
+                }
+                else
+                {
+                    ErrorS(token, ")");
+                }
+            }
+            // Caso B: Es un valor normal con sus posibles unarios (ej. -5 o !true)
+            else if (token == "+" || token == "-" || token == "!" || token == "~" ||
+                     token == "identificador" || token == "numero_entero" ||
+                     token == "numero_real" || token == "caracter" ||
+                     token == "true" || token == "false")
+            {
+                OpUnarios(); // Leemos el unario ANTES del operando (ej. el '-' de -5)
+                Operandos(); // Leemos el operando en sí (ej. el 5 o la variable x)
+
+                // ¡ELIMINAMOS la segunda llamada a OpUnarios() que estaba aquí!
+            }
+            // Caso C: Si no es paréntesis ni valor, la expresión está mal formada
+            else
+            {
+                ErrorS(token, "expresión válida");
+            }
+        }
+
+
+
+
+        private void OpUnarios()
+        {
+            while (token == "+" || token == "-" || token == "!" || token == "~")
+            {
+                switch (token)
+                {
+                    case "+":
+                        SiguienteToken(); // Consume el primer '+'
+                        if (token == "+") { SiguienteToken(); } // Si es '++', lo consume
+                                                                // No necesitamos 'else'. Si es solo '+', ya lo consumió arriba.
+                        break;
+
+                    case "-":
+                        SiguienteToken(); // Consume el primer '-'
+                        if (token == "-") { SiguienteToken(); } // Si es '--', lo consume
+                                                                // Igual aquí, borramos el else.
+                        break;
+
+                    case "!":
+                    case "~":
+                        SiguienteToken(); // Solo avanzamos el token
+                        break;
+                }
+            }
+        }
+
+        private void OperadorBinario()
+        {
+            switch (token)
+            {
+                // Operadores de un solo símbolo
+                case "*":
+                case "+":
+                case "-":
+                case "/":
+                case "%":
+                    SiguienteToken();
+                    break; // Como es void, usamos break en lugar de return true
+
+                // Operadores que pueden ser simples (<, >) o dobles (<=, >=)
+                case "<":
+                case ">":
+                    SiguienteToken();
+                    if (token == "=") SiguienteToken();
+                    break;
+
+                // Operadores estrictamente dobles (==)
+                case "=":
+                    SiguienteToken();
+                    if (token == "=")
+                    {
+                        SiguienteToken();
+                    }
+                    else
+                    {
+                        ErrorS(token, "= (para formar el operador ==)");
+                    }
+                    break;
+
+                // Operadores estrictamente dobles (!=)
+                case "!":
+                    SiguienteToken();
+                    if (token == "=")
+                    {
+                        SiguienteToken();
+                    }
+                    else
+                    {
+                        ErrorS(token, "= (para formar el operador !=)");
+                    }
+                    break;
+
+                // Operadores lógicos estrictamente dobles (&&)
+                case "&":
+                    SiguienteToken();
+                    if (token == "&")
+                    {
+                        SiguienteToken();
+                    }
+                    else
+                    {
+                        ErrorS(token, "& (para formar el operador &&)");
+                    }
+                    break;
+
+                // Operadores lógicos estrictamente dobles (||)
+                case "|":
+                    SiguienteToken();
+                    if (token == "|")
+                    {
+                        SiguienteToken();
+                    }
+                    else
+                    {
+                        ErrorS(token, "| (para formar el operador ||)");
+                    }
+                    break;
+
+                // Si llegamos aquí por error
+                default:
+                    ErrorS(token, "operador binario");
+                    break;
+            }
+        }
+
+
+        private void LimpiarArchivosCsv()
+        {
+            // 1. Limpiamos el archivo de Variables
+            string archivoVariables = "tablaV.csv";
+            if (File.Exists(archivoVariables))
+            {
+                File.Delete(archivoVariables);
+            }
+
+            // 2. Limpiamos el archivo de Funciones
+            string archivoFunciones = "tablaF.csv";
+            if (File.Exists(archivoFunciones))
+            {
+                File.Delete(archivoFunciones);
+            }
+        }
+
+
     }
+
 }

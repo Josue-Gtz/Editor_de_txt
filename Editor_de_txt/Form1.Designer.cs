@@ -9,15 +9,20 @@ namespace Editor_de_txt
         /// Variable del diseñador necesaria.
         /// </summary>
         private System.ComponentModel.IContainer components = null;
-        string archivo, archivoback, archivotrad;
-
+        string archivo, archivoback, archivotrad, archivobackb;
+        List<string> TipoDeDatos = new List<string>();
         StreamWriter Escribir;
         StreamReader Leer;
-        int i_caracter, N_error;
+        int i_caracter, N_error,n_para;
         char c_caracter;
         int Numero_linea;
          string elemento = "";
         string elementois = "";
+        string origen;
+        string nombreVar;
+        string tipoVar, tipoDato,nombreT,tipoT,preDatos;
+        string origenF;
+        string origenAUX;
         string token;
         List<string> P_Res_Tipo = new List<string>() { "int", "float", "string", "bool", "char", "double", "long", "void" };
         /// <summary>
